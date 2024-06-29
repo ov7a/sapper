@@ -20,7 +20,7 @@ const UNKNOWN = 10
 var field: array[WIDTH, array[HEIGHT, uint8]]
 var closedCells = WIDTH*HEIGHT
 
-proc generateField = 
+proc generateField(sapperX: int, sapperY: int) = 
   for x in 0..<WIDTH:
     for y in 0..<HEIGHT:
       field[x][y] = UNKNOWN
@@ -29,7 +29,7 @@ proc generateField =
   while minesLeft > 0:
     let mineX = rand(WIDTH - 1)
     let mineY = rand(HEIGHT - 1)
-    if field[mineX][mineY] == UNKNOWN:
+    if field[mineX][mineY] == UNKNOWN and (mineX != sapperX or mineY != sapperY):
       field[mineX][mineY] = HIDDEN_MINE
       minesLeft -= 1     
 
@@ -78,10 +78,11 @@ proc mayBeMoveSapper(keyPressed: uint8) =
 ### Game state
 
 proc restart =
-  gameState = IN_PROGRESS
   closedCells = WIDTH*HEIGHT
-  generateField()
   moveSapper(rand(WIDTH-1), rand(HEIGHT-1))
+  generateField(sapperX, sapperY)
+  maybeOpenCell(sapperX, sapperY)
+  gameState = IN_PROGRESS
 
 ### Drawing
 
