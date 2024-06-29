@@ -7,8 +7,8 @@ const CELL_WIDTH = SCREEN_SIZE div WIDTH
 const CELL_HEIGHT = SCREEN_SIZE div HEIGHT
 const MINES = 40
 
-type GameState = enum IN_PROGRESS, OVER
-var gameState: GameState = IN_PROGRESS
+type GameState = enum START, IN_PROGRESS, OVER, VICTORY
+var gameState: GameState = START
 
 ### Field
 
@@ -18,19 +18,20 @@ var gameState: GameState = IN_PROGRESS
 const HIDDEN_MINE = 11
 const UNKNOWN = 10
 var field: array[WIDTH, array[HEIGHT, uint8]]
+var closedCells = WIDTH*HEIGHT
 
 proc generateField = 
-  for x in 0..WIDTH:
-    for y in 0..HEIGHT:
+  for x in 0..<WIDTH:
+    for y in 0..<HEIGHT:
       field[x][y] = UNKNOWN
 
   var minesLeft = MINES
   while minesLeft > 0:
-    let mineX = rand(WIDTH)
-    let mineY = rand(HEIGHT)
+    let mineX = rand(WIDTH - 1)
+    let mineY = rand(HEIGHT - 1)
     if field[mineX][mineY] == UNKNOWN:
       field[mineX][mineY] = HIDDEN_MINE
-      minesLeft -= 1   
+      minesLeft -= 1     
 
 proc surroundingMines(x: int, y: int): uint8 =
   uint8(x > 0 and y > 0 and field[x-1][y-1] == HIDDEN_MINE) + 
@@ -48,8 +49,9 @@ proc maybeOpenCell(x: int, y: int) =
       gameState = OVER
     of UNKNOWN:
       field[x][y] = surroundingMines(x, y)
-    of 0..8:
-      discard # TODO  
+      closedCells -= 1
+      if (closedCells == MINES):
+        gameState = VICTORY
     else:
       discard
 
@@ -77,14 +79,15 @@ proc mayBeMoveSapper(keyPressed: uint8) =
 
 proc restart =
   gameState = IN_PROGRESS
+  closedCells = WIDTH*HEIGHT
   generateField()
-  moveSapper(rand(WIDTH), rand(HEIGHT))
+  moveSapper(rand(WIDTH-1), rand(HEIGHT-1))
 
 ### Drawing
 
 proc drawSapper(x: int, y: int) = 
   DRAW_COLORS[] = 0x4
-  oval(x * CELL_WIDTH + 2, y * CELL_HEIGHT + 2, CELL_WIDTH - 4, CELL_HEIGHT - 4)
+  oval(x * CELL_WIDTH + 3, y * CELL_HEIGHT + 3, CELL_WIDTH - 6, CELL_HEIGHT - 6)
 
 proc drawUnknownCell(x: int, y: int) =
   DRAW_COLORS[] = 0x23
@@ -100,8 +103,8 @@ proc drawCell(x: int, y: int) =
         oval(x * CELL_WIDTH + 2, y * CELL_HEIGHT + 2, CELL_WIDTH - 4, CELL_HEIGHT - 4)
       else:
         drawUnknownCell(x, y)
-    of 0..8:
-      DRAW_COLORS[] = 0x4
+    of 1..8:
+      DRAW_COLORS[] = if (field[x][y] > 2): 0x4 else: 0x2
       text($field[x][y], x * CELL_WIDTH + 1, y * CELL_HEIGHT + 1)
     else:
       discard  
@@ -111,10 +114,24 @@ proc drawField =
     for y in 0..HEIGHT:
       drawCell(x,y)
 
+proc printCenter(text: string, y: int) =
+  text(text, (SCREEN_SIZE - text.len*FONT_SIZE) div 2, y)
+
+proc drawStartScreen =
+  DRAW_COLORS[] = 0x2
+  printCenter("SAPPER", (SCREEN_SIZE - FONT_SIZE) div 2)
+  printCenter("Press x to start", (SCREEN_SIZE + FONT_SIZE) div 2)
+  printCenter("made by ov7a", SCREEN_SIZE - FONT_SIZE - FONT_SIZE div 2)
+
 proc drawGameOver =
   DRAW_COLORS[] = 0x24
-  text("Game over", SCREEN_SIZE div 2 - 9*4, SCREEN_SIZE div 2 - 5)
-  text("Press x to restart", SCREEN_SIZE div 2 - 18*4, SCREEN_SIZE div 2 + 5)
+  printCenter("Game over", (SCREEN_SIZE - FONT_SIZE) div 2)
+  printCenter("Press x", (SCREEN_SIZE + FONT_SIZE) div 2)
+
+proc drawVictory =
+  DRAW_COLORS[] = 0x24
+  printCenter("Victory!", (SCREEN_SIZE - FONT_SIZE) div 2)
+  printCenter("Press x", (SCREEN_SIZE + FONT_SIZE) div 2)
 
 ### Setup and update
 
@@ -123,7 +140,6 @@ proc setup =
   PALETTE[1] = 0x86C06C
   PALETTE[2] = 0x306850
   PALETTE[3] = 0xFF0000
-  restart()
 
 # Call NimMain so that global Nim code in modules will be called, 
 # preventing unexpected errors
@@ -146,10 +162,19 @@ proc update {.exportWasm.} =
   elif gameState == IN_PROGRESS and keyPressed != 0:
     mayBeMoveSapper(keyPressed)
   
-  drawField()
-  drawSapper(sapperX, sapperY) 
-  if (gameState == OVER):
-    drawGameOver()
+  if gameState != START:
+    drawField()
+    drawSapper(sapperX, sapperY) 
+
+  case gameState:
+    of START:
+      drawStartScreen()
+    of OVER:
+      drawGameOver()
+    of VICTORY:
+      drawVictory()  
+    of IN_PROGRESS:
+      discard  
   
   # must be at the end to avoid false updates
   previousGamepad = gamepad
