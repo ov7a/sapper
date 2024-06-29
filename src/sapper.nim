@@ -152,12 +152,15 @@ proc start {.exportWasm.} =
   setup()
 
 var previousGamepad: uint8
+var frameCount: int
 
 proc update {.exportWasm.} =
+  frameCount += 1
   var gamepad = GAMEPAD1[]
   let keyPressed = gamepad and (gamepad xor previousGamepad)
 
   if bool(keyPressed and BUTTON_1):
+    randomize(frameCount)
     restart()
   elif gameState == IN_PROGRESS and keyPressed != 0:
     mayBeMoveSapper(keyPressed)
