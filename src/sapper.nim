@@ -79,9 +79,11 @@ proc mayBeMoveSapper(keyPressed: uint8) =
 
 proc restart =
   closedCells = WIDTH*HEIGHT
-  moveSapper(rand(WIDTH-1), rand(HEIGHT-1))
-  generateField(sapperX, sapperY)
-  maybeOpenCell(sapperX, sapperY)
+  let 
+    startX = rand(WIDTH-1)
+    startY = rand(HEIGHT-1)
+  generateField(startX, startY)
+  moveSapper(startX, startY)
   gameState = IN_PROGRESS
 
 ### Drawing
