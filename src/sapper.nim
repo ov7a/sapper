@@ -3,6 +3,7 @@ import std/random
 
 type GameState = enum START, IN_PROGRESS, OVER, VICTORY
 var gameState: GameState = START
+var frameCount: int # for randomization
 
 ### Field
 
@@ -101,16 +102,6 @@ proc moveSapper(x: Coord, y: Coord) =
   sapperY = y
   maybeOpenCell(x,y)
 
-proc mayBeMoveSapper(keyPressed: uint8) =
-  if bool(keyPressed and BUTTON_LEFT):
-    moveSapper(max(0, sapperX - 1), sapperY)
-  elif bool(keyPressed and BUTTON_RIGHT):
-    moveSapper(min(WIDTH - 1, sapperX + 1), sapperY)
-  elif bool(keyPressed and BUTTON_UP):
-    moveSapper(sapperX, max(0, sapperY - 1))
-  elif bool(keyPressed and BUTTON_DOWN):
-    moveSapper(sapperX, min(HEIGHT - 1, sapperY + 1))
-
 ### Game state
 
 proc restart =
@@ -122,11 +113,47 @@ proc restart =
   moveSapper(startX, startY)
   gameState = IN_PROGRESS
 
-### Drawing
+### Controls
 
 const 
   CELL_WIDTH = SCREEN_SIZE div WIDTH
   CELL_HEIGHT = SCREEN_SIZE div HEIGHT
+
+proc processArrows(keyPressed: uint8) = 
+  if bool(keyPressed and BUTTON_LEFT):
+    moveSapper(max(0, sapperX - 1), sapperY)
+  elif bool(keyPressed and BUTTON_RIGHT):
+    moveSapper(min(WIDTH - 1, sapperX + 1), sapperY)
+  elif bool(keyPressed and BUTTON_UP):
+    moveSapper(sapperX, max(0, sapperY - 1))
+  elif bool(keyPressed and BUTTON_DOWN):
+    moveSapper(sapperX, min(HEIGHT - 1, sapperY + 1))
+
+proc sign(x: int): int =
+  if x >= 0: 1 else: -1
+
+proc processMouse(mousePressed: uint8) = 
+  if bool(mousePressed and MOUSE_LEFT):
+    let 
+      diffX = MOUSE_X[] - (sapperX * CELL_WIDTH + CELL_WIDTH div 2)
+      diffY = MOUSE_Y[] - (sapperY * CELL_HEIGHT + CELL_HEIGHT div 2)
+    if (abs(diffX) >= abs(diffY)) and (abs(diffX) > CELL_WIDTH div 2):
+      moveSapper(min(max(0, sapperX + sign(diffX)), WIDTH - 1), sapperY)
+    elif (abs(diffY) > CELL_HEIGHT div 2):
+      moveSapper(sapperX, min(max(0, sapperY + sign(diffY)), HEIGHT - 1))
+
+proc processKeys(keyPressed: uint8, mousePressed: uint8) =
+  if bool(keyPressed and BUTTON_1) or 
+    ((gameState != IN_PROGRESS) and bool(mousePressed and MOUSE_LEFT)):
+    randomize(frameCount)
+    restart()
+  elif gameState == IN_PROGRESS:
+    if keyPressed != 0:
+      processArrows(keyPressed)
+    elif mousePressed != 0:
+      processMouse(mousePressed)  
+
+### Drawing
 
 proc drawSapper(x: Coord, y: Coord) = 
   DRAW_COLORS[] = 0x4
@@ -208,19 +235,19 @@ proc start {.exportWasm.} =
   #randomize()
   setup()
 
-var previousGamepad: uint8
-var frameCount: int
+var 
+  previousGamepad: uint8 = 0
+  previousMouse: uint8 = 0
 
 proc update {.exportWasm.} =
   frameCount += 1
-  var gamepad = GAMEPAD1[]
-  let keyPressed = gamepad and (gamepad xor previousGamepad)
+  let 
+    gamepad = GAMEPAD1[]
+    keyPressed = gamepad and (gamepad xor previousGamepad)
+    mouse = MOUSE_BUTTONS[]
+    mousePressed = mouse and (mouse xor previousMouse)
 
-  if bool(keyPressed and BUTTON_1):
-    randomize(frameCount)
-    restart()
-  elif gameState == IN_PROGRESS and keyPressed != 0:
-    mayBeMoveSapper(keyPressed)
+  processKeys(keyPressed, mousePressed)
   
   if gameState != START:
     drawField()
@@ -238,4 +265,4 @@ proc update {.exportWasm.} =
   
   # must be at the end to avoid false updates
   previousGamepad = gamepad
-
+  previousMouse = mouse

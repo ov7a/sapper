@@ -27,9 +27,9 @@ const
   BUTTON_DOWN* = 128
 
 const
-  MOUSE_LEFT* = 0
-  MOUSE_RIGHT* = 1
-  MOUSE_MIDDLE* = 2
+  MOUSE_LEFT* = 1
+  MOUSE_RIGHT* = 2
+  MOUSE_MIDDLE* = 4
 
 const
   BLIT_2BPP* = 1
