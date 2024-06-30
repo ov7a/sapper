@@ -1,6 +1,9 @@
 # sapper
 
-A game written in Nim for the [WASM-4](https://wasm4.org) fantasy console.
+A game written in Nim for the [WASM-4](https://wasm4.org) fantasy console. 
+
+![](screenshot1.png)
+![](screenshot2.png)
 
 ## Building
 
