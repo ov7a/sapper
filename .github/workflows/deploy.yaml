@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: nimlang/nim:2.0.6-ubuntu
+    env:
+      WASI_SDK_PATH: /opt/wasi-sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup WASI SDK
+        run: |
+          mkdir ${{ env.WASI_SDK_PATH }}
+          export WASI_VERSION=22
+          export WASI_VERSION_FULL=${WASI_VERSION}.0
+          wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+          tar --strip-components=1 --directory ${{ env.WASI_SDK_PATH }} --extract --gunzip -f wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz
+
+      - name: setup wasm4
+        run: npm install -g wasm4
+
+      - name: setup git for nim
+        run: git config --system --add safe.directory /__w/sapper/sapper
+
+      - name: assemble
+        run: nimble rel
+
+      - name: package
+        run: w4 bundle --html build/html/index.html --title 'Sapper' --description 'https://github.com/ov7a/sapper' build/sapper.wasm
+
+      - name: 
+        id: push_directory
+        uses: cpina/github-action-push-to-another-repository@07c4d7b3def0a8ebe788a8f2c843a4e1de4f6900
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+        with:
+          source-directory: build/html/
+          destination-github-username: 'ov7a'
+          destination-repository-name: 'ov7a.github.io'
+          user-email: ov7a@yandex.ru
+          commit-message: autocommit from ORIGIN_COMMIT
+          target-branch: master
+          target-directory: sapper
