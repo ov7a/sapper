@@ -20,18 +20,46 @@ const UNKNOWN = 10
 var field: array[WIDTH, array[HEIGHT, uint8]]
 var closedCells = WIDTH*HEIGHT
 
-proc generateField(sapperX: int, sapperY: int) = 
-  for x in 0..<WIDTH:
-    for y in 0..<HEIGHT:
-      field[x][y] = UNKNOWN
+iterator neighbors(x: int, y: int): (int, int) =
+  if (x > 0): yield (x - 1, y)
+  if (x < WIDTH - 1): yield (x + 1, y)
+  if (y > 0): yield (x, y - 1)
+  if (y < HEIGHT - 1): yield (x, y + 1)
 
-  var minesLeft = MINES
-  while minesLeft > 0:
-    let mineX = rand(WIDTH - 1)
-    let mineY = rand(HEIGHT - 1)
-    if field[mineX][mineY] == UNKNOWN and (mineX != sapperX or mineY != sapperY):
-      field[mineX][mineY] = HIDDEN_MINE
-      minesLeft -= 1     
+proc isSolvable: bool =
+  static: assert WIDTH*HEIGHT <= 1 shl sizeof(uint8)
+  var visited: set[uint8]
+
+  proc pos(x: int, y: int): uint8 = uint8(x * WIDTH + y)
+
+  var stack: seq[(int, int)] = @[(WIDTH div 2, HEIGHT div 2)]
+
+  while stack.len > 0:
+    let (x, y) = stack.pop()
+    visited.incl(pos(x, y))
+    trace("visited " & $visited.len)
+    for (nx, ny) in neighbors(x, y):
+      if (not (pos(nx, ny) in visited)) and field[nx][ny] != HIDDEN_MINE:
+        stack.add((nx, ny))
+  trace("git " & $(visited.len) & "  " & $(WIDTH*HEIGHT - MINES ))
+  visited.len == WIDTH*HEIGHT - MINES       
+
+proc generateField(sapperX: int, sapperY: int) = 
+  while true:
+    for x in 0..<WIDTH:
+      for y in 0..<HEIGHT:
+        field[x][y] = UNKNOWN
+
+    var minesLeft = MINES
+    while minesLeft > 0:
+      let mineX = rand(WIDTH - 1)
+      let mineY = rand(HEIGHT - 1)
+      if field[mineX][mineY] == UNKNOWN and (mineX != sapperX or mineY != sapperY):
+        field[mineX][mineY] = HIDDEN_MINE
+        minesLeft -= 1     
+
+    if (isSolvable()):
+      break
 
 proc surroundingMines(x: int, y: int): uint8 =
   uint8(x > 0 and y > 0 and field[x-1][y-1] == HIDDEN_MINE) + 
