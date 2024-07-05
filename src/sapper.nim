@@ -133,7 +133,8 @@ proc sign(x: int): int =
   if x >= 0: 1 else: -1
 
 proc processMouse(mousePressed: uint8) = 
-  if bool(mousePressed and MOUSE_LEFT):
+  if bool(mousePressed and MOUSE_LEFT) and 
+      (MOUSE_X[] in 0..SCREEN_SIZE) and (MOUSE_Y[] in 0..SCREEN_SIZE):
     let 
       diffX = MOUSE_X[] - (sapperX * CELL_WIDTH + CELL_WIDTH div 2)
       diffY = MOUSE_Y[] - (sapperY * CELL_HEIGHT + CELL_HEIGHT div 2)
